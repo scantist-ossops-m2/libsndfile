@@ -403,6 +403,19 @@ sf_flac_meta_callback (const FLAC__StreamDecoder * UNUSED (decoder), const FLAC_
 
 	switch (metadata->type)
 	{	case FLAC__METADATA_TYPE_STREAMINFO :
+			if (psf->sf.channels > 0 && psf->sf.channels != (int) metadata->data.stream_info.channels)
+			{	psf_log_printf (psf, "Error: FLAC stream changed from %d to %d channels\n"
+									"Nothing to be but to error out.\n" ,
+									psf->sf.channels, metadata->data.stream_info.channels) ;
+				psf->error = SFE_FLAC_CHANNEL_COUNT_CHANGED ;
+				return ;
+				} ;
+
+			if (psf->sf.channels > 0 && psf->sf.samplerate != (int) metadata->data.stream_info.sample_rate)
+			{	psf_log_printf (psf, "Warning: FLAC stream changed sample rates from %d to %d.\n"
+									"Carrying on as if nothing happened.",
+									psf->sf.samplerate, metadata->data.stream_info.sample_rate) ;
+				} ;
 			psf->sf.channels = metadata->data.stream_info.channels ;
 			psf->sf.samplerate = metadata->data.stream_info.sample_rate ;
 			psf->sf.frames = metadata->data.stream_info.total_samples ;
@@ -785,7 +798,9 @@ flac_read_header (SF_PRIVATE *psf)
 
 	psf_log_printf (psf, "End\n") ;
 
-	if (psf->error == 0)
+	if (psf->error != 0)
+		FLAC__stream_decoder_delete (pflac->fsd) ;
+	else
 	{	FLAC__uint64 position ;
 
 		FLAC__stream_decoder_get_decode_position (pflac->fsd, &position) ;
